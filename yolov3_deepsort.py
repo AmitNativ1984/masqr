@@ -1,10 +1,15 @@
+import itertools
+import math
 import os
 import cv2
 import time
 import argparse
+
+import imutils
 import torch
 import warnings
 import numpy as np
+import yaml
 
 from detector import build_detector
 from deep_sort import build_tracker
@@ -12,6 +17,66 @@ from utils.draw import draw_boxes
 from utils.parser import get_config
 from utils.log import get_logger
 from utils.io import write_results
+from bird_view_transfo_functions import compute_perspective_transform,compute_point_perspective_transformation
+
+COLOR_RED = (0, 0, 255)
+COLOR_GREEN = (0, 255, 0)
+COLOR_BLUE = (255, 0, 0)
+BIG_CIRCLE = 60
+SMALL_CIRCLE = 3
+
+def get_centroids_and_groundpoints(bbox_xyxy):
+    """
+    For every bounding box, compute the centroid and the point located on the bottom center of the box
+    @ array_boxes_detected : list containing all our bounding boxes
+    """
+    array_centroids, array_groundpoints = [], []  # Initialize empty centroid and ground point lists
+  #  for index, box in enumerate(array_boxes_detected):
+        # Draw the bounding box
+        # c
+        # Get the both important points
+    for bb_xyxy in bbox_xyxy:
+  #      bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))
+        centroid, ground_point = get_points_from_box(bb_xyxy)
+        array_centroids.append(centroid)
+        array_groundpoints.append(centroid)
+    return array_centroids, array_groundpoints
+
+
+def get_points_from_box(bb_xyxy):
+    """
+    Get the center of the bounding and the point "on the ground"
+    @ param = box : 2 points representing the bounding box
+    @ return = centroid (x1,y1) and ground point (x2,y2)
+    """
+    # Center of the box x = (x1+x2)/2 et y = (y1+y2)/2
+    center_x = int(((bb_xyxy[0] + bb_xyxy[2]) / 2))
+    center_y = int(((bb_xyxy[1] + bb_xyxy[3]) / 2))
+    # Coordiniate on the point at the bottom center of the box
+    center_y_ground = center_y + ((bb_xyxy[3] - bb_xyxy[1]) / 2)
+    return (center_x, center_y), (center_x, int(center_y_ground))
+
+def change_color_on_topview(img,pair):
+    """
+    Draw red circles for the designated pair of points
+    """
+    cv2.circle(img, (pair[0][0], pair[0][1]), BIG_CIRCLE, COLOR_RED, 2)
+    cv2.circle(img, (pair[0][0], pair[0][1]), SMALL_CIRCLE, COLOR_RED, -1)
+    cv2.circle(img, (pair[1][0], pair[1][1]), BIG_CIRCLE, COLOR_RED, 2)
+    cv2.circle(img, (pair[1][0], pair[1][1]), SMALL_CIRCLE, COLOR_RED, -1)
+
+
+def draw_rectangle(img,corner_points):
+    # Draw rectangle box over the delimitation area
+    cv2.line(img, (corner_points[0][0], corner_points[0][1]), (corner_points[1][0], corner_points[1][1]), COLOR_BLUE,
+             thickness=1)
+    cv2.line(img, (corner_points[1][0], corner_points[1][1]), (corner_points[3][0], corner_points[3][1]), COLOR_BLUE,
+             thickness=1)
+    cv2.line(img, (corner_points[0][0], corner_points[0][1]), (corner_points[2][0], corner_points[2][1]), COLOR_BLUE,
+             thickness=1)
+    cv2.line(img, (corner_points[3][0], corner_points[3][1]), (corner_points[2][0], corner_points[2][1]), COLOR_BLUE,
+             thickness=1)
+
 
 
 class VideoTracker(object):
@@ -76,6 +141,41 @@ class VideoTracker(object):
         results = []
         idx_frame = 0
         while self.vdo.grab():
+
+            #########################################
+            # Load the config for the top-down view #
+            #########################################
+            #  print(bcolors.WARNING + "[ Loading config file for the bird view transformation ] " + bcolors.ENDC)
+            with open("conf/config_birdview.yml", "r") as ymlfile:
+                cfg = yaml.safe_load(ymlfile)
+            width_og, height_og = 0, 0
+            corner_points = []
+            for section in cfg:
+                corner_points.append(cfg["image_parameters"]["p1"])
+                corner_points.append(cfg["image_parameters"]["p2"])
+                corner_points.append(cfg["image_parameters"]["p3"])
+                corner_points.append(cfg["image_parameters"]["p4"])
+                width_og = int(cfg["image_parameters"]["width_og"])
+                height_og = int(cfg["image_parameters"]["height_og"])
+                img_path = cfg["image_parameters"]["img_path"]
+                size_frame = cfg["image_parameters"]["size_frame"]
+            #   print(bcolors.OKGREEN + " Done : [ Config file loaded ] ..." + bcolors.ENDC)
+
+            #########################################
+            #     Compute transformation matrix		#
+            #########################################
+            # Compute  transformation matrix from the original frame
+            matrix, imgOutput = compute_perspective_transform(corner_points, width_og, height_og, cv2.imread(img_path))
+            height, width, _ = imgOutput.shape
+            blank_image = np.zeros((height, width, 3), np.uint8)
+            height = blank_image.shape[0]
+            width = blank_image.shape[1]
+            dim = (width, height)
+
+            # Load the image of the ground and resize it to the correct size
+            img = cv2.imread("img/chemin_1.png")
+            bird_view_img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
+
             idx_frame += 1
             if idx_frame % self.args.frame_interval:
                 continue
@@ -83,6 +183,9 @@ class VideoTracker(object):
             start = time.time()
             _, ori_im = self.vdo.retrieve()
             im = cv2.cvtColor(ori_im, cv2.COLOR_BGR2RGB)
+
+            # # Draw the green rectangle to delimitate the detection zone
+            draw_rectangle(ori_im, corner_points)
 
             # do detection
             bbox_xywh, cls_conf, cls_ids = self.detector(im)
@@ -104,6 +207,42 @@ class VideoTracker(object):
                 bbox_xyxy = outputs[:, :4]
                 identities = outputs[:, -1]
                 ori_im = draw_boxes(ori_im, bbox_xyxy, identities)
+                array_centroids, array_groundpoints = get_centroids_and_groundpoints(bbox_xyxy)
+                     # Use the transform matrix to get the transformed coordonates
+                transformed_downoids = compute_point_perspective_transformation(matrix, array_groundpoints)
+
+                    # Show every point on the top view image
+                for point in transformed_downoids:
+                    x, y = point
+                    cv2.circle(bird_view_img, (x, y), BIG_CIRCLE, COLOR_GREEN, 2)
+                    cv2.circle(bird_view_img, (x, y), SMALL_CIRCLE, COLOR_GREEN, -1)
+
+                list_indexes = list(itertools.combinations(range(len(transformed_downoids)), 2))
+                for i, pair in enumerate(itertools.combinations(transformed_downoids, r=2)):
+                    # Check if the distance between each combination of points is less than the minimum distance chosen
+                    distance_minimum = 110
+                    if math.sqrt((pair[0][0] - pair[1][0]) ** 2 + (pair[0][1] - pair[1][1]) ** 2) < distance_minimum:
+                        # Change the colors of the points that are too close from each other to red
+                        if not (pair[0][0] > width or pair[0][0] < 0 or pair[0][1] > height + 200 or pair[0][
+                            1] < 0 or
+                                pair[1][0] > width or pair[1][0] < 0 or pair[1][1] > height + 200 or pair[1][
+                                    1] < 0):
+                            change_color_on_topview(bird_view_img, pair)
+                            # Get the equivalent indexes of these points in the original frame and change the color to red
+                            index_pt1 = list_indexes[i][0]
+                            index_pt2 = list_indexes[i][1]
+                            cv2.rectangle(ori_im,
+                                          (bbox_xyxy[index_pt1][0], bbox_xyxy[index_pt1][1]),
+                                          (bbox_xyxy[index_pt1][2], bbox_xyxy[index_pt1][3]),
+                                          COLOR_RED, 3)
+                            cv2.rectangle(ori_im,
+                                          (bbox_xyxy[index_pt2][0], bbox_xyxy[index_pt2][1]),
+                                          (bbox_xyxy[index_pt2][2], bbox_xyxy[index_pt2][3]),
+                                          COLOR_RED, 3)
+
+
+
+
 
                 for bb_xyxy in bbox_xyxy:
                     bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))
@@ -111,6 +250,8 @@ class VideoTracker(object):
                 results.append((idx_frame - 1, bbox_tlwh, identities))
 
             end = time.time()
+
+            cv2.imshow("Bird view", bird_view_img)
 
             if self.args.display:
                 cv2.imshow("test", ori_im)
@@ -151,3 +292,5 @@ if __name__ == "__main__":
 
     with VideoTracker(cfg, args, video_path=args.VIDEO_PATH) as vdo_trk:
         vdo_trk.run()
+
+
