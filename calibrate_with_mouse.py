@@ -66,7 +66,7 @@ if __name__ == "__main__":
                     size_frame = size_frame,
                     ))
             # Write the result to the config file
-            with open('conf/config_birdview.yml', 'w') as outfile:
+            with open('configs/config_birdview.yml', 'w') as outfile:
                 yaml.dump(config_data, outfile, default_flow_style=False)
             break
         if cv2.waitKey(20) == 27:

@@ -146,7 +146,7 @@ class VideoTracker(object):
             # Load the config for the top-down view #
             #########################################
             #  print(bcolors.WARNING + "[ Loading config file for the bird view transformation ] " + bcolors.ENDC)
-            with open("conf/config_birdview.yml", "r") as ymlfile:
+            with open("configs/config_birdview.yml", "r") as ymlfile:
                 cfg = yaml.safe_load(ymlfile)
             width_og, height_og = 0, 0
             corner_points = []
