@@ -4,7 +4,7 @@ import os
 import cv2
 import time
 import argparse
-
+import matplotlib.pyplot as plt
 # import imutils
 import torch
 import warnings
@@ -142,7 +142,7 @@ class VideoTracker(object):
     def run(self):
         results = []
         idx_frame = 0
-
+        plt.figure()
         while self.vdo.grab():
 
             #########################################
@@ -217,11 +217,18 @@ class VideoTracker(object):
                 transformed_downoids = compute_point_perspective_transformation(np.linalg.inv(self.H), array_groundpoints)
 
                     # Show every point on the top view image
+                plt.cla()
+                plt.xlim((-300, 60))
+                plt.ylim((-60, 360))
                 for point in transformed_downoids:
+                    print(point)
                     x, y = point
-                    cv2.circle(bird_view_img, (x, y), BIG_CIRCLE, COLOR_GREEN, 2)
-                    cv2.circle(bird_view_img, (x, y), SMALL_CIRCLE, COLOR_GREEN, -1)
+                    # cv2.circle(bird_view_img, (x, y), BIG_CIRCLE, COLOR_GREEN, 2)
+                    # cv2.circle(bird_view_img, (x, y), SMALL_CIRCLE, COLOR_GREEN, -1)
 
+                    plt.scatter(x, y, marker='+', color='b')
+                    plt.scatter(x, y, marker='o', color='g', alpha=0.5, s=800)
+                    plt.pause(0.05)
                 list_indexes = list(itertools.combinations(range(len(transformed_downoids)), 2))
                 for i, pair in enumerate(itertools.combinations(transformed_downoids, r=2)):
                     # Check if the distance between each combination of points is less than the minimum distance chosen
@@ -294,4 +301,5 @@ if __name__ == "__main__":
     with VideoTracker(cfg, args, video_path=args.VIDEO_PATH) as vdo_trk:
         vdo_trk.run()
 
+    plt.show()
 
