@@ -39,7 +39,7 @@ def get_centroids_and_groundpoints(bbox_xyxy):
   #      bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))
         centroid, ground_point = get_points_from_box(bb_xyxy)
         array_centroids.append(centroid)
-        array_groundpoints.append(centroid)
+        array_groundpoints.append(ground_point)
     return array_centroids, array_groundpoints
 
 
@@ -53,7 +53,8 @@ def get_points_from_box(bb_xyxy):
     center_x = int(((bb_xyxy[0] + bb_xyxy[2]) / 2))
     center_y = int(((bb_xyxy[1] + bb_xyxy[3]) / 2))
     # Coordiniate on the point at the bottom center of the box
-    center_y_ground = center_y + ((bb_xyxy[3] - bb_xyxy[1]) / 2)
+    # center_y_ground = center_y + ((bb_xyxy[3] - bb_xyxy[1]) / 2)
+    center_y_ground = bb_xyxy[1] + bb_xyxy[3]
     return (center_x, center_y), (center_x, int(center_y_ground))
 
 def change_color_on_topview(img,pair):
@@ -197,7 +198,7 @@ class VideoTracker(object):
 
             bbox_xywh = bbox_xywh[mask]
             # bbox dilation just in case bbox too small, delete this line if using a better pedestrian detector
-            bbox_xywh[:, 3:] *= 1.2
+            bbox_xywh[:, 3:] *= 1
             cls_conf = cls_conf[mask]
 
             # do tracking
@@ -213,7 +214,7 @@ class VideoTracker(object):
 
                 array_centroids, array_groundpoints = get_centroids_and_groundpoints(bbox_xyxy)
                      # Use the transform matrix to get the transformed coordonates
-                transformed_downoids = compute_point_perspective_transformation(matrix, array_groundpoints)
+                transformed_downoids = compute_point_perspective_transformation(np.linalg.inv(self.H), array_groundpoints)
 
                     # Show every point on the top view image
                 for point in transformed_downoids:
