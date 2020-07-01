@@ -6,7 +6,7 @@ from bottle import Bottle, response, request as bottle_request
 
 # 1240246316:AAGeM3EhQG1wffLeQWqvDule5UTIjkdJQ0E           https://245fd77d9c53.ngrok.io/
 
-# python bot.py
+# python botserver.py
 # ./ngrok http 8080
 # api.telegram.org/bot1240246316:AAGeM3EhQG1wffLeQWqvDule5UTIjkdJQ0E/getWebhookInfo
 # api.telegram.org/bot1240246316:AAGeM3EhQG1wffLeQWqvDule5UTIjkdJQ0E/setWebHook?url=https://a9602a2ac9ac.ngrok.io/
