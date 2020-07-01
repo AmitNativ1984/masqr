@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import yaml
-import imutils
+# import imutils
 
  
 # Define the callback function that we are going to use to get our coordinates
@@ -15,18 +15,18 @@ def CallBackFunc(event, x, y, flags, param):
 
 
 
-video_name = input("Enter the exact name of the video (including .mp4 or else) : ")
+# video_name = input("Enter the exact name of the video (including .mp4 or else) : ")
 
-size_frame = input("Prompt the size of the image you want to get : ")
+# size_frame = input("Prompt the size of the image you want to get : ")
 
 
-vs = cv2.VideoCapture("video/"+video_name)
+# vs = cv2.VideoCapture("video/"+video_name)
 # Loop until the end of the video stream
 while True:    
     # Load the frame and test if it has reache the end of the video
-    (frame_exists, frame) = vs.read()
-    frame = imutils.resize(frame, width=int(size_frame))
-    cv2.imwrite("img/static_frame_from_video.jpg", frame)
+    # (frame_exists, frame) = vs.read()
+    # frame = imutils.resize(frame, width=int(size_frame))
+    # cv2.imwrite("img/static_frame_from_video.jpg", frame)
     break
 
 # Create a black image and a window
@@ -35,7 +35,7 @@ cv2.namedWindow(windowName)
 
 
 # Load the image 
-img_path = "img/static_frame_from_video.jpg"
+img_path = "img_calib.bmp"
 img = cv2.imread(img_path)
 
 # Get the size of the image for the calibration
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     # Check if the 4 points have been saved
     while (True):
         cv2.imshow(windowName, img)
-        if len(list_points) == 4:
+        if len(list_points) == 40:
             # Return a dict to the YAML file
             config_data = dict(
                 image_parameters = dict(

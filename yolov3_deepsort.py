@@ -18,7 +18,7 @@ from utils.parser import get_config
 from utils.log import get_logger
 from utils.io import write_results
 from bird_view_transfo_functions import compute_perspective_transform,compute_point_perspective_transformation
-
+from homography import get_homography
 COLOR_RED = (0, 0, 255)
 COLOR_GREEN = (0, 255, 0)
 COLOR_BLUE = (255, 0, 0)
@@ -39,7 +39,7 @@ def get_centroids_and_groundpoints(bbox_xyxy):
   #      bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))
         centroid, ground_point = get_points_from_box(bb_xyxy)
         array_centroids.append(centroid)
-        array_groundpoints.append(centroid)
+        array_groundpoints.append(ground_point)
     return array_centroids, array_groundpoints
 
 
@@ -53,7 +53,8 @@ def get_points_from_box(bb_xyxy):
     center_x = int(((bb_xyxy[0] + bb_xyxy[2]) / 2))
     center_y = int(((bb_xyxy[1] + bb_xyxy[3]) / 2))
     # Coordiniate on the point at the bottom center of the box
-    center_y_ground = center_y + ((bb_xyxy[3] - bb_xyxy[1]) / 2)
+    # center_y_ground = center_y + ((bb_xyxy[3] - bb_xyxy[1]) / 2)
+    center_y_ground = bb_xyxy[1] + bb_xyxy[3]
     return (center_x, center_y), (center_x, int(center_y_ground))
 
 def change_color_on_topview(img,pair):
@@ -96,13 +97,14 @@ class VideoTracker(object):
 
         if args.cam != -1:
             print("Using webcam " + str(args.cam))
+            # self.vdo = cv2.VideoCapture(args.cam)
             self.vdo = cv2.VideoCapture(args.cam)
         else:
             self.vdo = cv2.VideoCapture()
         self.detector = build_detector(cfg, use_cuda=use_cuda)
         self.deepsort = build_tracker(cfg, use_cuda=use_cuda)
         self.class_names = self.detector.class_names
-
+        self.H = get_homography()
     def __enter__(self):
         if self.args.cam != -1:
             ret, frame = self.vdo.read()
@@ -140,8 +142,6 @@ class VideoTracker(object):
     def run(self):
         results = []
         idx_frame = 0
-  #     dictionary = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
-
 
         while self.vdo.grab():
 
@@ -186,9 +186,9 @@ class VideoTracker(object):
             start = time.time()
             _, ori_im = self.vdo.retrieve()
             im = cv2.cvtColor(ori_im, cv2.COLOR_BGR2RGB)
-
+            cv2.imwrite("img_calib.bmp", im)
             # # Draw the green rectangle to delimitate the detection zone
-            draw_rectangle(ori_im, corner_points)
+            # draw_rectangle(ori_im, corner_points)
 
             # do detection
             bbox_xywh, cls_conf, cls_ids = self.detector(im)
@@ -198,13 +198,11 @@ class VideoTracker(object):
 
             bbox_xywh = bbox_xywh[mask]
             # bbox dilation just in case bbox too small, delete this line if using a better pedestrian detector
-            bbox_xywh[:, 3:] *= 1.2
+            bbox_xywh[:, 3:] *= 1
             cls_conf = cls_conf[mask]
 
             # do tracking
             outputs = self.deepsort.update(bbox_xywh, cls_conf, im)
-
-
 
             # draw boxes for visualization
             if len(outputs) > 0:
@@ -214,10 +212,9 @@ class VideoTracker(object):
                 track_aruco = outputs[:, -1]
                 ori_im = draw_boxes(ori_im, bbox_xyxy, track_identities, track_aruco)
 
-
                 array_centroids, array_groundpoints = get_centroids_and_groundpoints(bbox_xyxy)
                      # Use the transform matrix to get the transformed coordonates
-                transformed_downoids = compute_point_perspective_transformation(matrix, array_groundpoints)
+                transformed_downoids = compute_point_perspective_transformation(np.linalg.inv(self.H), array_groundpoints)
 
                     # Show every point on the top view image
                 for point in transformed_downoids:
@@ -247,10 +244,6 @@ class VideoTracker(object):
                                           (bbox_xyxy[index_pt2][0], bbox_xyxy[index_pt2][1]),
                                           (bbox_xyxy[index_pt2][2], bbox_xyxy[index_pt2][3]),
                                           COLOR_RED, 3)
-
-
-
-
 
                 for bb_xyxy in bbox_xyxy:
                     bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))
