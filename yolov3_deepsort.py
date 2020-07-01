@@ -87,6 +87,10 @@ class VideoTracker(object):
         self.video_path = video_path
         self.logger = get_logger("root")
 
+        self.status_dict = {0: "OK",
+                            1: "ACQUIRED",
+                            2: "VIOLATION"}
+
         use_cuda = args.use_cuda and torch.cuda.is_available()
         if not use_cuda:
             warnings.warn("Running in cpu mode which maybe very slow!", UserWarning)
@@ -208,9 +212,17 @@ class VideoTracker(object):
             if len(outputs) > 0:
                 bbox_tlwh = []
                 bbox_xyxy = outputs[:, :4]
-                track_identities = outputs[:, -2]
-                track_aruco = outputs[:, -1]
+                track_identities = outputs[:, -3]
+                track_aruco = outputs[:, -2]
                 ori_im = draw_boxes(ori_im, bbox_xyxy, track_identities, track_aruco)
+
+                # check statuses (acquired):
+                for person in outputs:
+                    stat = self.status_dict[person[-1]]
+                    if stat != "OK":
+                        telegram_msg = [str(time.time()) + ":" + stat + ":" + str(person[-2])]
+
+
 
                 array_centroids, array_groundpoints = get_centroids_and_groundpoints(bbox_xyxy)
                      # Use the transform matrix to get the transformed coordonates
@@ -230,6 +242,7 @@ class VideoTracker(object):
                     plt.scatter(x, y, marker='o', color='g', alpha=0.5, s=800)
                     plt.pause(0.05)
                 list_indexes = list(itertools.combinations(range(len(transformed_downoids)), 2))
+
                 for i, pair in enumerate(itertools.combinations(transformed_downoids, r=2)):
                     # Check if the distance between each combination of points is less than the minimum distance chosen
                     distance_minimum = 110
