@@ -73,18 +73,26 @@ class telegram(object):
             update_ids.append(int(update["update_id"]))
         return max(update_ids)
 
-
-    def send_message(self,text, aruco_id):
-        text = timestamp:status:aruco_id:aruco_id
-        msg=text.split(":")
-        timestamp=msg[0]
-        status=msg[2]
-        id1 = msg[3]
-        id2 = msg[4]
-
-        text = urllib.parse.quote_plus(text)
-        url = URL + "sendMessage?text=123&chat_id=530533958".format(text, chat_id)
-        self.get_url(url)
+    def send_message(self, text):
+     #text = timestamp:status:aruco_id:aruco_id
+        tms, stat, id1, id2 = text.split(":")
+        if stat == "ACQUIRED":
+            chat_id1 = self.datbase.get(id1, None)
+            msg = "Congratulations! you are now registered to MasQR :)"
+            if chat_id1:
+                url = URL + "sendMessage?text={0}&chat_id={1}".format(msg, chat_id1)
+                self.get_url(url)
+        elif stat == "VIOLATION":
+            chat_id1 = self.datbase.get(id1, None)
+            chat_id2 = self.datbase.get(id2, None)
+            msg = "Attention! you are violating COVID-19 restrictions"
+            if chat_id1 and chat_id2:
+                url = URL + "sendMessage?text={0}&chat_id={1}".format(msg, chat_id1)
+                self.get_url(url)
+                url = URL + "sendMessage?text={0}&chat_id={1}".format(msg, chat_id2)
+                self.get_url(url)
+        else:
+            pass
 
 
 if __name__ == '__main__':
