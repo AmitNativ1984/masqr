@@ -5,7 +5,7 @@ import cv2
 import time
 import argparse
 
-import imutils
+# import imutils
 import torch
 import warnings
 import numpy as np
@@ -141,8 +141,7 @@ class VideoTracker(object):
         results = []
         idx_frame = 0
   #     dictionary = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
-        dictionary = cv2.aruco.Dictionary_get(cv2.aruco.DICT_ARUCO_ORIGINAL)
-        parameters = cv2.aruco.DetectorParameters_create()
+
 
         while self.vdo.grab():
 
@@ -205,9 +204,7 @@ class VideoTracker(object):
             # do tracking
             outputs = self.deepsort.update(bbox_xywh, cls_conf, im)
 
-            #        _, img = cap.read()
-            _c, _ids, _ = cv2.aruco.detectMarkers(ori_im, dictionary, parameters=parameters)
-            ori_im = cv2.aruco.drawDetectedMarkers(ori_im, _c, _ids)
+
 
             # draw boxes for visualization
             if len(outputs) > 0:
