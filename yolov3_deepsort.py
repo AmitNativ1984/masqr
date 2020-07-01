@@ -18,7 +18,7 @@ from utils.parser import get_config
 from utils.log import get_logger
 from utils.io import write_results
 from bird_view_transfo_functions import compute_perspective_transform,compute_point_perspective_transformation
-
+from homography import get_homography
 COLOR_RED = (0, 0, 255)
 COLOR_GREEN = (0, 255, 0)
 COLOR_BLUE = (255, 0, 0)
@@ -96,13 +96,14 @@ class VideoTracker(object):
 
         if args.cam != -1:
             print("Using webcam " + str(args.cam))
+            # self.vdo = cv2.VideoCapture(args.cam)
             self.vdo = cv2.VideoCapture(args.cam)
         else:
             self.vdo = cv2.VideoCapture()
         self.detector = build_detector(cfg, use_cuda=use_cuda)
         self.deepsort = build_tracker(cfg, use_cuda=use_cuda)
         self.class_names = self.detector.class_names
-
+        self.H = get_homography()
     def __enter__(self):
         if self.args.cam != -1:
             ret, frame = self.vdo.read()
@@ -184,7 +185,7 @@ class VideoTracker(object):
             start = time.time()
             _, ori_im = self.vdo.retrieve()
             im = cv2.cvtColor(ori_im, cv2.COLOR_BGR2RGB)
-
+            cv2.imwrite("img_calib.bmp", im)
             # # Draw the green rectangle to delimitate the detection zone
             # draw_rectangle(ori_im, corner_points)
 
@@ -202,8 +203,6 @@ class VideoTracker(object):
             # do tracking
             outputs = self.deepsort.update(bbox_xywh, cls_conf, im)
 
-
-
             # draw boxes for visualization
             if len(outputs) > 0:
                 bbox_tlwh = []
@@ -211,7 +210,6 @@ class VideoTracker(object):
                 track_identities = outputs[:, -2]
                 track_aruco = outputs[:, -1]
                 ori_im = draw_boxes(ori_im, bbox_xyxy, track_identities, track_aruco)
-
 
                 array_centroids, array_groundpoints = get_centroids_and_groundpoints(bbox_xyxy)
                      # Use the transform matrix to get the transformed coordonates
@@ -245,10 +243,6 @@ class VideoTracker(object):
                                           (bbox_xyxy[index_pt2][0], bbox_xyxy[index_pt2][1]),
                                           (bbox_xyxy[index_pt2][2], bbox_xyxy[index_pt2][3]),
                                           COLOR_RED, 3)
-
-
-
-
 
                 for bb_xyxy in bbox_xyxy:
                     bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))

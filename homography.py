@@ -16,15 +16,15 @@ def get_ax_ay(m_pixel, m_world):
 
 def get_homography():
     # Pixel coordinates
-    pixel_lst = [(random.randrange(250), random.randrange(250)),      #1 (u1', v1') u1'=u1/w1, v1'=v1/w1
-                (random.randrange(250), random.randrange(250)),      #2 (u2', v2') u2'=u2/w2, v2'=v2/w2
-                (random.randrange(250), random.randrange(250)),      #3 (u3', v3') u3'=u3/w3, v3'=v3/w3
-                (random.randrange(250), random.randrange(250)),      #4 (u4', v4') u4'=u4/w4, v4'=v4/w4
-                (random.randrange(250), random.randrange(250)),      #5 (u5', v5') u5'=u5/w5, v5'=v5/w5
-                (random.randrange(250), random.randrange(250)),      #6 (u6', v6') u6'=u6/w6, v6'=v6/w6
-                (random.randrange(250), random.randrange(250)),      #7 (u7', v7') u7'=u7/w7, v7'=v7/w7
-                (random.randrange(250), random.randrange(250)),      #8 (u8', v8') u8'=u8/w8, v8'=v8/w8
-                (random.randrange(250), random.randrange(250))]      #9 (u9', v9') u9'=u9/w9, v9'=v9/w9
+    pixel_lst = [(633 ,  298),      #1 (u1', v1') u1'=u1/w1, v1'=v1/w1
+                (466 ,  238),      #2 (u2', v2') u2'=u2/w2, v2'=v2/w2
+                (331 ,  190),      #3 (u3', v3') u3'=u3/w3, v3'=v3/w3
+                (277 ,  170),      #4 (u4', v4') u4'=u4/w4, v4'=v4/w4
+                (512 ,  389),      #5 (u5', v5') u5'=u5/w5, v5'=v5/w5
+                (334 ,  303),      #6 (u6', v6') u6'=u6/w6, v6'=v6/w6
+                (199 ,  237),      #7 (u7', v7') u7'=u7/w7, v7'=v7/w7
+                (145 ,  397),      #8 (u8', v8') u8'=u8/w8, v8'=v8/w8
+                (21 ,  301)]      #9 (u9', v9') u9'=u9/w9, v9'=v9/w9
 
     world_lst = [(0, 0),            #1 (x1, y1, 1)
                 (0, 111.1),        #2 (x2, y2, 1)
@@ -51,5 +51,6 @@ def get_homography():
     min_ev_index = np.argmin(w)
     return v[np.argmin(w)].reshape(3,3)
 
-homography = get_homography()
-pass
+if __name__ == '__main__':
+    homography = get_homography()
+    print(homography)
