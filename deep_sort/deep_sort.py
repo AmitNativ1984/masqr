@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-
+import cv2
 from .deep.feature_extractor import Extractor
 from .sort.nn_matching import NearestNeighborDistanceMetric
 from .sort.preprocessing import non_max_suppression
@@ -23,6 +23,9 @@ class DeepSort(object):
         metric = NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
         self.tracker = Tracker(metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
 
+        self.aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_ARUCO_ORIGINAL)
+        self.aruco_params = cv2.aruco.DetectorParameters_create()
+
     def update(self, bbox_xywh, confidences, ori_img):
         self.height, self.width = ori_img.shape[:2]
         # generate detections
@@ -40,6 +43,8 @@ class DeepSort(object):
         self.tracker.predict()
         self.tracker.update(detections)
 
+        aruco_tags, aruco_ids, _ = cv2.aruco.detectMarkers(ori_img, self.aruco_dict, parameters=self.aruco_params)
+
         # output bbox identities
         outputs = []
         for track in self.tracker.tracks:
@@ -48,9 +53,35 @@ class DeepSort(object):
             box = track.to_tlwh()
             x1,y1,x2,y2 = self._tlwh_to_xyxy(box)
             track_id = track.track_id
-            outputs.append(np.array([x1,y1,x2,y2,track_id], dtype=np.int))
+            aruco_id = track.aruco_id
+
+            #updating track data
+            outputs.append(np.array([x1, y1, x2, y2, track_id, aruco_id], dtype=np.int))
+
         if len(outputs) > 0:
             outputs = np.stack(outputs,axis=0)
+
+        # checking aruco ids. ids acquired only if no crossing:
+        if aruco_tags != []:
+            for tag_i, aruco_id in enumerate(aruco_ids):
+                aruco_x1 = min(aruco_tags[tag_i].squeeze(0)[:, 0])
+                aruco_y1 = min(aruco_tags[tag_i].squeeze(0)[:, 1])
+                aruco_x2 = max(aruco_tags[tag_i].squeeze(0)[:, 0])
+                aruco_y2 = max(aruco_tags[tag_i].squeeze(0)[:, 1])
+
+                # checking how many bbox include aruco:
+                output_ids = []
+
+                for i, (x1, y1, x2, y2, track_id, aruco_id) in enumerate(outputs):
+                    if aruco_x1 >= x1 and aruco_y1 >= y1 and \
+                            aruco_x2 <= x2 and aruco_y2 <= y2:
+                        output_ids.append(i)
+                # only single bbox have aruco:
+                if len(output_ids) == 1:
+                    if self.tracker.tracks[output_ids[0]].aruco_id == -1:
+                        self.tracker.tracks[output_ids[0]].aruco_id = aruco_ids[0]
+                        outputs[output_ids[0]][-1] = aruco_ids[0]
+
         return outputs
 
 
