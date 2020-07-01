@@ -1,15 +1,15 @@
 import json
-
+import os
 import requests
 from bottle import Bottle, response, request as bottle_request
-
+import glob
 
 # 1240246316:AAGeM3EhQG1wffLeQWqvDule5UTIjkdJQ0E           https://245fd77d9c53.ngrok.io/
 
-# python bot.py
+# python botServer.py
 # ./ngrok http 8080
 # api.telegram.org/bot1240246316:AAGeM3EhQG1wffLeQWqvDule5UTIjkdJQ0E/getWebhookInfo
-# api.telegram.org/bot1240246316:AAGeM3EhQG1wffLeQWqvDule5UTIjkdJQ0E/setWebHook?url=https://a9602a2ac9ac.ngrok.io/
+# api.telegram.org/bot1240246316:AAGeM3EhQG1wffLeQWqvDule5UTIjkdJQ0E/setWebHook?url=https://84c7bba1be3c.ngrok.io/
 
 
 class BotHandlerMixin:
@@ -45,7 +45,10 @@ class TelegramBot(BotHandlerMixin, Bottle):
     def __init__(self, *args, **kwargs):
         super(TelegramBot, self).__init__()
         self.route('/', callback=self.post_handler, method="POST")
-        self.counter = 0;
+        self.counter = 0
+        # delete all files
+        for f in glob.glob("./data/*"):
+            os.remove(f)
 
     def change_text_message(self, text):
         return text[::-1]
@@ -64,7 +67,7 @@ class TelegramBot(BotHandlerMixin, Bottle):
     def post_handler(self):
         data = bottle_request.json
         answer_data = self.prepare_data_for_answer(data)
-        with open('data\data%d.txt' % self.counter, 'w') as outfile:
+        with open('./data/data%d.txt' % self.counter, 'w') as outfile:
             json.dump(data, outfile)
         self.counter = self.counter + 1
         self.send_message(answer_data)
