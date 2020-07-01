@@ -47,6 +47,7 @@ class DeepSort(object):
 
         # output bbox identities
         outputs = []
+        status = 0
         for track in self.tracker.tracks:
             if not track.is_confirmed() or track.time_since_update > 1:
                 continue
@@ -56,7 +57,7 @@ class DeepSort(object):
             aruco_id = track.aruco_id
 
             #updating track data
-            outputs.append(np.array([x1, y1, x2, y2, track_id, aruco_id], dtype=np.int))
+            outputs.append(np.array([x1, y1, x2, y2, track_id, aruco_id, status], dtype=np.int))
 
         if len(outputs) > 0:
             outputs = np.stack(outputs,axis=0)
@@ -72,7 +73,7 @@ class DeepSort(object):
                 # checking how many bbox include aruco:
                 output_ids = []
 
-                for i, (x1, y1, x2, y2, track_id, aruco_id) in enumerate(outputs):
+                for i, (x1, y1, x2, y2, track_id, aruco_id, status) in enumerate(outputs):
                     if aruco_x1 >= x1 and aruco_y1 >= y1 and \
                             aruco_x2 <= x2 and aruco_y2 <= y2:
                         output_ids.append(i)
@@ -80,7 +81,8 @@ class DeepSort(object):
                 if len(output_ids) == 1:
                     if self.tracker.tracks[output_ids[0]].aruco_id == -1:
                         self.tracker.tracks[output_ids[0]].aruco_id = aruco_ids[0]
-                        outputs[output_ids[0]][-1] = aruco_ids[0]
+                        outputs[output_ids[0]][-2] = aruco_ids[0]
+                        outputs[output_ids[0]][-1] = 1
 
         return outputs
 
