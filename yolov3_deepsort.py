@@ -140,8 +140,6 @@ class VideoTracker(object):
     def run(self):
         results = []
         idx_frame = 0
-  #     dictionary = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
-
 
         while self.vdo.grab():
 
@@ -188,7 +186,7 @@ class VideoTracker(object):
             im = cv2.cvtColor(ori_im, cv2.COLOR_BGR2RGB)
 
             # # Draw the green rectangle to delimitate the detection zone
-            draw_rectangle(ori_im, corner_points)
+            # draw_rectangle(ori_im, corner_points)
 
             # do detection
             bbox_xywh, cls_conf, cls_ids = self.detector(im)
