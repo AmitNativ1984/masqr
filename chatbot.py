@@ -12,6 +12,7 @@ import urllib
 import json
 import requests
 import time
+import os
 
 TOKEN = "1240246316:AAGeM3EhQG1wffLeQWqvDule5UTIjkdJQ0E"
 URL = "https://api.telegram.org/bot{}/".format(TOKEN)
@@ -20,13 +21,14 @@ class telegram(object):
 
     def __init__(self):
         self.counter = 0
-        self.datbase = {}
+        self.database = {}
 
     def update_database(self):
-        with open('./data/data%d.txt' % self.counter) as file:
-            data = json.load(file)
-            self.database.update({data["text"]: data["chat"]["id"]})
-            self.counter += 1
+        if os.path.exists('./data/data%d.txt' % self.counter):
+            with open('./data/data%d.txt' % self.counter) as file:
+                data = json.load(file)
+                self.database.update({data["message"]["text"]: data["message"]["chat"]["id"]})
+                self.counter += 1
 
 
     def get_url(self, url):
@@ -75,16 +77,17 @@ class telegram(object):
 
     def send_message(self, text):
      #text = timestamp:status:aruco_id:aruco_id
-        tms, stat, id1, id2 = text.split(":")
+        tms, stat, id1, id2 = text[0].split(":")
         if stat == "ACQUIRED":
-            chat_id1 = self.datbase.get(id1, None)
+            chat_id1 = self.database.get(id1, None)
             msg = "Congratulations! you are now registered to MasQR :)"
+            print(msg)
             if chat_id1:
                 url = URL + "sendMessage?text={0}&chat_id={1}".format(msg, chat_id1)
                 self.get_url(url)
         elif stat == "VIOLATION":
-            chat_id1 = self.datbase.get(id1, None)
-            chat_id2 = self.datbase.get(id2, None)
+            chat_id1 = self.database.get(id1, None)
+            chat_id2 = self.database.get(id2, None)
             msg = "Attention! you are violating COVID-19 restrictions"
             if chat_id1 and chat_id2:
                 url = URL + "sendMessage?text={0}&chat_id={1}".format(msg, chat_id1)

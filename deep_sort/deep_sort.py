@@ -43,8 +43,10 @@ class DeepSort(object):
         self.tracker.predict()
         self.tracker.update(detections)
 
-        aruco_tags, aruco_ids, _ = cv2.aruco.detectMarkers(ori_img, self.aruco_dict, parameters=self.aruco_params)
-
+        aruco_tags, aruco_ids, rejected_corners = cv2.aruco.detectMarkers(ori_img, self.aruco_dict, parameters=self.aruco_params)
+        aruco_img = cv2.aruco.drawDetectedMarkers(cv2.cvtColor(ori_img, cv2.COLOR_BGR2RGB), aruco_tags,aruco_ids)
+        cv2.imshow('aruco', aruco_img);
+        cv2.waitKey(1)
         # output bbox identities
         outputs = []
         status = 0

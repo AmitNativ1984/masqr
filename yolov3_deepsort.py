@@ -10,7 +10,8 @@ import torch
 import warnings
 import numpy as np
 import yaml
-
+import glob
+from chatbot import telegram
 from detector import build_detector
 from deep_sort import build_tracker
 from utils.draw import draw_boxes
@@ -87,9 +88,15 @@ class VideoTracker(object):
         self.video_path = video_path
         self.logger = get_logger("root")
 
+        # delete all files
+        # for f in glob.glob("./data/*"):
+        #     os.remove(f)
+
         self.status_dict = {0: "OK",
                             1: "ACQUIRED",
                             2: "VIOLATION"}
+
+        self.telegram_bot = telegram()
 
         use_cuda = args.use_cuda and torch.cuda.is_available()
         if not use_cuda:
@@ -109,6 +116,8 @@ class VideoTracker(object):
         self.deepsort = build_tracker(cfg, use_cuda=use_cuda)
         self.class_names = self.detector.class_names
         self.H = get_homography()
+
+
     def __enter__(self):
         if self.args.cam != -1:
             ret, frame = self.vdo.read()
@@ -148,7 +157,7 @@ class VideoTracker(object):
         idx_frame = 0
         plt.figure()
         while self.vdo.grab():
-
+            self.telegram_bot.update_database()
             #########################################
             # Load the config for the top-down view #
             #########################################
@@ -220,8 +229,9 @@ class VideoTracker(object):
                 for person in outputs:
                     stat = self.status_dict[person[-1]]
                     if stat != "OK":
-                        telegram_msg = [str(time.time()) + ":" + stat + ":" + str(person[-2])]
-
+                        print([str(time.time()) + ":" + stat + ":" + str(person[-2]) + ":" + str(person[-2])])
+                        telegram_msg = [str(time.time()) + ":" + stat + ":" + str(person[-2]) + ":" + str(person[-2])]
+                        self.telegram_bot.send_message(telegram_msg)
 
 
                 array_centroids, array_groundpoints = get_centroids_and_groundpoints(bbox_xyxy)
@@ -230,8 +240,8 @@ class VideoTracker(object):
 
                     # Show every point on the top view image
                 plt.cla()
-                plt.xlim((-300, 60))
-                plt.ylim((-60, 360))
+                plt.xlim((-500, 500))
+                plt.ylim((-500, 500))
                 for point in transformed_downoids:
                     print(point)
                     x, y = point
@@ -239,8 +249,8 @@ class VideoTracker(object):
                     # cv2.circle(bird_view_img, (x, y), SMALL_CIRCLE, COLOR_GREEN, -1)
 
                     plt.scatter(x, y, marker='+', color='b')
-                    plt.scatter(x, y, marker='o', color='g', alpha=0.5, s=800)
-                    plt.pause(0.05)
+                    plt.scatter(x, y, marker='o', color='g', alpha=0.5, s=1000*2)
+
                 list_indexes = list(itertools.combinations(range(len(transformed_downoids)), 2))
 
                 for i, pair in enumerate(itertools.combinations(transformed_downoids, r=2)):
@@ -248,22 +258,33 @@ class VideoTracker(object):
                     distance_minimum = 110
                     if math.sqrt((pair[0][0] - pair[1][0]) ** 2 + (pair[0][1] - pair[1][1]) ** 2) < distance_minimum:
                         # Change the colors of the points that are too close from each other to red
-                        if not (pair[0][0] > width or pair[0][0] < 0 or pair[0][1] > height + 200 or pair[0][
-                            1] < 0 or
-                                pair[1][0] > width or pair[1][0] < 0 or pair[1][1] > height + 200 or pair[1][
-                                    1] < 0):
-                            change_color_on_topview(bird_view_img, pair)
-                            # Get the equivalent indexes of these points in the original frame and change the color to red
-                            index_pt1 = list_indexes[i][0]
-                            index_pt2 = list_indexes[i][1]
-                            cv2.rectangle(ori_im,
-                                          (bbox_xyxy[index_pt1][0], bbox_xyxy[index_pt1][1]),
-                                          (bbox_xyxy[index_pt1][2], bbox_xyxy[index_pt1][3]),
-                                          COLOR_RED, 3)
-                            cv2.rectangle(ori_im,
-                                          (bbox_xyxy[index_pt2][0], bbox_xyxy[index_pt2][1]),
-                                          (bbox_xyxy[index_pt2][2], bbox_xyxy[index_pt2][3]),
-                                          COLOR_RED, 3)
+                        # if not (pair[0][0] > width or pair[0][0] < 0 or pair[0][1] > height + 200 or pair[0][
+                        #     1] < 0 or
+                        #         pair[1][0] > width or pair[1][0] < 0 or pair[1][1] > height + 200 or pair[1][
+                        #             1] < 0):
+                        change_color_on_topview(bird_view_img, pair)
+                        # Get the equivalent indexes of these points in the original frame and change the color to red
+                        index_pt1 = list_indexes[i][0]
+                        index_pt2 = list_indexes[i][1]
+                        cv2.rectangle(ori_im,
+                                      (bbox_xyxy[index_pt1][0], bbox_xyxy[index_pt1][1]),
+                                      (bbox_xyxy[index_pt1][2], bbox_xyxy[index_pt1][3]),
+                                      COLOR_RED, 3)
+                        cv2.rectangle(ori_im,
+                                      (bbox_xyxy[index_pt2][0], bbox_xyxy[index_pt2][1]),
+                                      (bbox_xyxy[index_pt2][2], bbox_xyxy[index_pt2][3]),
+                                      COLOR_RED, 3)
+
+                        outputs[index_pt1][-1] = 2
+                        outputs[index_pt2][-1] = 2
+
+                        plt.scatter(pair[0][0], pair[0][1], marker='o', color='r', alpha=0.5, s=1000*2)
+                        plt.scatter(pair[1][0], pair[1][1], marker='o', color='r', alpha=0.5, s=1000 * 2)
+
+                        telegram_msg = [str(time.time()) + ":" + "VIOLATION" + ":" + str(outputs[index_pt1][-2]) + ":" + str(outputs[index_pt2][-2])]
+                        self.telegram_bot.send_message(telegram_msg)
+
+                plt.pause(0.05)
 
                 for bb_xyxy in bbox_xyxy:
                     bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))
