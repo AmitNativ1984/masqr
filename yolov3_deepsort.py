@@ -55,7 +55,7 @@ def get_points_from_box(bb_xyxy):
     center_y = int(((bb_xyxy[1] + bb_xyxy[3]) / 2))
     # Coordiniate on the point at the bottom center of the box
     # center_y_ground = center_y + ((bb_xyxy[3] - bb_xyxy[1]) / 2)
-    center_y_ground = bb_xyxy[1] + bb_xyxy[3]
+    center_y_ground = bb_xyxy[3]#bb_xyxy[1] + bb_xyxy[3]
     return (center_x, center_y), (center_x, int(center_y_ground))
 
 def change_color_on_topview(img,pair):
@@ -240,8 +240,11 @@ class VideoTracker(object):
 
                     # Show every point on the top view image
                 plt.cla()
-                plt.xlim((-500, 500))
-                plt.ylim((-500, 500))
+                plt.xlim((-500, 100))
+                plt.ylim((-100, 500))
+                plt.grid()
+                plt.xlabel('[m]')
+                plt.ylabel('[m]')
                 for point in transformed_downoids:
                     print(point)
                     x, y = point
@@ -249,7 +252,7 @@ class VideoTracker(object):
                     # cv2.circle(bird_view_img, (x, y), SMALL_CIRCLE, COLOR_GREEN, -1)
 
                     plt.scatter(x, y, marker='+', color='b')
-                    plt.scatter(x, y, marker='o', color='g', alpha=0.5, s=1000*2)
+                    plt.scatter(x, y, marker='o', color='g', alpha=0.2, s=1500*2)
 
                 list_indexes = list(itertools.combinations(range(len(transformed_downoids)), 2))
 
@@ -278,8 +281,8 @@ class VideoTracker(object):
                         outputs[index_pt1][-1] = 2
                         outputs[index_pt2][-1] = 2
 
-                        plt.scatter(pair[0][0], pair[0][1], marker='o', color='r', alpha=0.5, s=1000*2)
-                        plt.scatter(pair[1][0], pair[1][1], marker='o', color='r', alpha=0.5, s=1000 * 2)
+                        plt.scatter(pair[0][0], pair[0][1], marker='o', color='r', alpha=0.2, s=1500*2)
+                        plt.scatter(pair[1][0], pair[1][1], marker='o', color='r', alpha=0.2, s=1500 * 2)
 
                         telegram_msg = [str(time.time()) + ":" + "VIOLATION" + ":" + str(outputs[index_pt1][-2]) + ":" + str(outputs[index_pt2][-2])]
                         self.telegram_bot.send_message(telegram_msg)
